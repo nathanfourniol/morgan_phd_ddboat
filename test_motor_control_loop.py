@@ -8,7 +8,7 @@ print("testing motor control")
 
 ard, _, _, encoddrv, _ = init_drivers()
 kpwm = 2
-wmLeft_d, wmRight_d = 75, 50 # reference
+wmLeft_d, wmRight_d = 50, 75 # reference
 
 filt = DdboatFilter(0, 0, np.zeros((3,3)), np.zeros((3,1)), encoddrv)
 
@@ -27,6 +27,7 @@ while True:
 
     wmLeft, wmRight = filt.measure_wm(data_encoders, dt)
     print(" --- ")
+    print("wmLeftd = "+str(wmLeft_d)+" | wmRightd = "+str(wmRight_d))
     print("wmLeft = "+str(wmLeft)+" | wmRight = "+str(wmRight))
     print("data_encodeur ",data_encoders)
 
@@ -34,6 +35,7 @@ while True:
     cmdR = min(max(cmdR_old + dt * kpwm * (wmRight_d - wmRight), 0), 200)
     print("cmdL = "+str(cmdL)+" | cmdR = "+str(cmdR))
     ard.send_arduino_cmd_motor(cmdL, cmdR)
+    cmdL_old,cmdR_old = cmdL,cmdR
 
     # loop update
     if not sync:

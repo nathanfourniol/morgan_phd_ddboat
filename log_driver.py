@@ -1,8 +1,8 @@
 import arduino_driver_v2 as ardu
 import tc74_driver_v2 as tc74
-import encoders_driver_v2 as encod
+import encoders_driver_v3 as encod
 import imu9_driver_v2 as imudv
-import gps_driver_v2 as gpsdrv
+import gps_driver_v3 as gpsdrv
 import logging
 import time
 import sys

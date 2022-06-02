@@ -13,18 +13,21 @@ print("robot setup ...")
 
 # load mission script
 file_script = open("angers_mission_script.json", "r")
+file_script2 = open("compass_calibration.json","r")
 data_script = json.load(file_script)
+data_script2 = json.load(file_script2)
 param = data_script["mission_param"]
-traj = data_script["trajectory"]
+trajs = data_script["trajectories"]
+mission_robot_id = param["mission_robot_id"]
+traj = trajs[mission_robot_id]
+print("robot id",mission_robot_id)
 
 ard, temperature, gps, encoddrv, imu = init_drivers()
-# ~ synchronise_time_on_gps(gps) 
-        
 log_rec = LogRecorder()
 lxm = param["lxm"]
 lym = param["lym"]
-b = np.reshape(np.array([param["b"]]), (3, 1))
-A = np.reshape(np.array([param["A"]]), (3, 3))
+b = np.reshape(np.array([data_script2["b"]]), (3, 1))
+A = np.reshape(np.array([data_script2["A"]]), (3, 3))
 
 filt = DdboatFilter(lxm, lym, A, b, encoddrv)
 
@@ -73,8 +76,6 @@ while mission:
     tl, tr, data, gll_ok, val, sync, data_encoders, mag, accel, gyro = log_rec.log_observe_update(temperature, ard, gps,
                                                                                                   encoddrv, imu)
     wmLeft, wmRight = filt.measure_wm(data_encoders, dt)
-    print(wmLeft,wmRight)
-    print(data_encoders)
     y_th = filt.cap(mag[0], mag[1], mag[2])
     if gll_ok:  # correct kalman filter with new gps data
         lat, lon = filt.cvt_gll_ddmm_2_dd(val)
@@ -107,7 +108,7 @@ while mission:
                                        qy=kal.X[4, 0])
 
     cmdL, cmdR = convert_motor_control_signal(u, kal.X[2, 0], wmLeft, wmRight, cmdL, cmdR, dt)
-    ard.send_arduino_cmd_motor(0*cmdL, 0*cmdR)
+    ard.send_arduino_cmd_motor(cmdL, cmdR)
     log_rec.log_control_update(u[0, 0], u[1, 0], wmLeft, wmRight, cmdL, cmdR, pd, y_th, kal)
     kal.Kalman_update(0*u, y_th)
     log_rec.log_update_write()  # write in the log file

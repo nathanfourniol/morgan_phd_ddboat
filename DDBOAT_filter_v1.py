@@ -19,7 +19,7 @@ def sawtooth(x):
 def taking_a_measurement(imu):
     test = input()
     x1 = np.zeros((3, 1))
-    if test == "O":
+    if test == "y":
         x1 = np.array([imu.read_mag_raw()]).T  # [0]
     print("measuring ", x1.T)
     return x1
@@ -48,7 +48,7 @@ class DdboatFilter:
         sensLeft, sensRight = data_encoders[1], data_encoders[2]
         odoLeft, odoRight = data_encoders[3], data_encoders[4]  # 0 to 65536=2**16 tics
         dodoLeft = abs(delta_odo(odoLeft,self.odoLeft)) # always positive
-        dodoRight = abs(delta_odo(odoRight,self.odoRight) 
+        dodoRight = abs(delta_odo(odoRight,self.odoRight)) 
         self.odoLeft, self.odoRight = odoLeft, odoRight
         wmLeft = dodoLeft / 8 / t_boucle  # 8 tics = 1 turn
         wmRight = dodoRight / 8 / t_boucle
@@ -81,21 +81,21 @@ class DdboatFilter:
 
         # Boucle de demande de mesure à l'utilisateur
         while n_satisfait:
-            print("Prêt mesure x1 ? (O/N)")
+            print("Prêt mesure x1 ? (y/n)")
             x1 = taking_a_measurement(imu)
 
-            print("Prêt mesure x-1 ? (O/N)")
+            print("Prêt mesure x-1 ? (y/n)")
             x_1 = taking_a_measurement(imu)
 
-            print("Prêt mesure x2 ? (O/N)")
+            print("Prêt mesure x2 ? (y/n)")
             x2 = taking_a_measurement(imu)
 
-            print("Prêt mesure x3 ? (O/N)")
+            print("Prêt mesure x3 ? (y/n)")
             x3 = taking_a_measurement(imu)
 
-            print("Satisfait ? (O/N)")
+            print("Satisfait ? (y/n)")
             test_final = input()
-            if test_final == "O":
+            if test_final == "y":
                 n_satisfait = 0
 
         fichier.close()
@@ -108,9 +108,6 @@ class DdboatFilter:
             self.A = (1 / self.beta) * X
         except:
             print("ERROR : missing some measurements !!!")
-
-        np.savetxt('A.txt', self.A)
-        np.savetxt('b.txt', self.b)
 
     def compass_auto_calibration(self, imu):  # when the magnetic field direction is unknown
         # mag_corrected = A_inv @ ( mag + b)
