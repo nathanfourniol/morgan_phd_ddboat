@@ -56,11 +56,9 @@ print("robot setup done")
 # ~ print("wait for the beginning of the mission")
 tb = param["time_mission_begin"]
 dtStr = str(tb["year"])+"-"+str(tb["mon"])+"-"+str(tb["day"])+"-"+str(tb["hour"])+"-"+str(tb["min"])+"-"+str(tb["sec"])
-time_mission_begin = tome.strptime(dtStr, "%Y-%m-%d-%H-%M-%S")
-# ~ while time.time() < time_mission_begin:
-    # ~ time.sleep(1)
+time_mission_begin = time.mktime(time.strptime(dtStr, "%Y-%m-%d-%H-%M-%S"))
 time_mission_max = param["duration_mission_max"] + time.time()  # max allowed time for mission
-# ~ print("the mission begins")
+print("mission will begin at",time.localtime(time_mission_begin))
 
 #####################
 # mission loop
