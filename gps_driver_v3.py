@@ -73,6 +73,7 @@ class GpsIO:
             st=v.decode("utf-8")
             if str(st[0:6]) == "$GPGLL":
                 vv = st.split(",")
+                print(vv)
                 if len(vv[1]) > 0:
                     val[0] = float(vv[1])
                 if len(vv[2]) > 0:

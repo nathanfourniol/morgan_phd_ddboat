@@ -68,6 +68,7 @@ k, pd, pos_old, t_pos_old, cmdL, cmdR = 0, None, kal.p(), time.time(), 0, 0
 
 print("Going to the initial waypoint")
 wait_for_signal = True # after time mission begin, the robot start following the trajectory 
+mstop = 1
 
 while mission:
 
@@ -87,10 +88,13 @@ while mission:
         traj_0 = traj[0]
         pd = np.reshape(np.array([traj_0["pd"]]), (2, 1))
         pd_dot,pd_ddot = np.zeros((2,1)), np.zeros((2,1))
-        if np.linalg.norm(pd-kal.p())<3: # don't move if under 3m of distance to the waypoint
-            pd = kap.p()
+        if mstop == 1 and np.linalg.norm(pd-kal.p())<2: # don't move if under 1m of distance to the waypoint
+            mstop = 0
+        if mstop == 0 and np.linalg.norm(pd-kal.p())>3: # start maving above 3m of distance
+            mstop = 1
         if time.time() > time_mission_begin: # after time mission begin, the robot start following the trajectory 
             wait_for_signal = False
+            mstop = 1
             print("Start following the trajectory")
     else:
         try:
@@ -104,10 +108,11 @@ while mission:
             break
 
     # controler update
-    u = control_feedback_linearization(pd, pd_dot, pd_ddot, dt, p=kal.p(), v=kal.X[2, 0], th=y_th, qx=kal.X[3, 0],
-                                       qy=kal.X[4, 0])
+    u = mstop*control_feedback_linearization(pd, pd_dot, pd_ddot, dt, p=kal.p(), v=kal.X[2, 0], th=y_th, qx=0*kal.X[3, 0],
+                                       qy=0*kal.X[4, 0])
 
     cmdL, cmdR = convert_motor_control_signal(u, kal.X[2, 0], wmLeft, wmRight, cmdL, cmdR, dt)
+    cmdL, cmdR = mstop*cmdL, mstop*cmdR
     ard.send_arduino_cmd_motor(cmdL, cmdR)
     log_rec.log_control_update(u[0, 0], u[1, 0], wmLeft, wmRight, cmdL, cmdR, pd, y_th, kal)
     kal.Kalman_update(0*u, y_th)

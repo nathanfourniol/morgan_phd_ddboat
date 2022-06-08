@@ -20,7 +20,7 @@
 import numpy as np
 from math import sin, cos
 
-k1, k3 = 0.01,0.003#150, 50
+k1, k3 = 0.01,0.006#150, 50
 K = np.array([[k1, k1], [-k3, k3]])
 B = np.array([[1, 1], [-1, 1]])
 K_inv = np.linalg.inv(K)
@@ -154,9 +154,9 @@ def convert_motor_control_signal(u, v_hat, wmLeft, wmRight, cmdL_old, cmdR_old,
         # ~ thust = -0*thust
         # ~ u[1,0] = -10*u[1,0]
         if u[1,0]>0:
-            return(200,0)
-        else:
             return(0,200)
+        else:
+            return(200,0)
     # ~ print("vd wd is",np.array([[thust,u[1,0]]]))
     mat = K_inv @ np.array([[thust,u[1,0]]]).T
     # ~ mat = K_inv @ (u + np.array([[k2 * v_hat, 0]]).T)  # convert to propeller rotation speed (turn/sec
