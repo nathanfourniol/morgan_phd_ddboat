@@ -12,10 +12,11 @@ import sys
 
 # noinspection PyBroadException
 class LogRecorder:
-    def __init__(self):
+    def __init__(self,t=None):
         # create a log file
         robot_number = str(encod.robot_id)
-        t=time.localtime(time.time())
+        if t is None:
+            t=time.localtime(time.time())
         number = str(t.tm_year) + "_" + str(t.tm_mon) + "_" + str(t.tm_mday) + "_" + str(t.tm_hour) + "_" + str(
             t.tm_min)
         logging.basicConfig(filename='Log/DDBOAT' + robot_number + "_t_" + number + '.log', level=logging.DEBUG,

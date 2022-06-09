@@ -18,7 +18,7 @@ if __name__ == "__main__":
         day = int(sys.argv[3])
     except:
         day = 1
-    t = time.gmtime(time.time()) # incorrect
+    t = time.localtime(time.time()) # incorrect
     h, m, s = t.tm_hour, t.tm_min, t.tm_sec  # year month day not updated
     print(h,m,s)
     dtStr = str(year) + "-" + str(month) + "-" + str(day) + "-" + str(h) + "-" + str(m) + "-" + str(s)

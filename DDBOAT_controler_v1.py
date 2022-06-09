@@ -18,7 +18,7 @@
 #################################################
 
 import numpy as np
-from math import sin, cos
+from math import sin, cos, atan2
 
 k1, k3 = 0.01,0.006#150, 50
 K = np.array([[k1, k1], [-k3, k3]])
@@ -100,7 +100,7 @@ def control_feedback_linearization(pd, pd_dot, pd_ddot, dt, p, v, th, qx, qy):
     # dt: controller period
 
     if abs(v) < 0.1:  # avoid singularity
-        print("speed singularity in controller")
+        # ~ print("speed singularity in controller")
         return np.array([[2, 0]]).T
 
     e = p - pd  # position error
@@ -108,17 +108,15 @@ def control_feedback_linearization(pd, pd_dot, pd_ddot, dt, p, v, th, qx, qy):
     A = np.array([[cos(th), -v * sin(th)], [sin(th), v * cos(th)]])  # transition matrix, p_ddot = A*u
     kc = 0.1
     u = np.linalg.inv(A) @ (pd_ddot - 2 * kc * ed - kc * e)  # [scalar acceleration, angular velocity]
-
-    # # saturation of the acceleration
-    # if abs(u[0,0])>2:
-    #     print("saturation of the acceleration ",u[0,0])
-    #     u[0,0] =np.sign(u[0,0])*2
-    #
-    # # saturation of the angular velocity
-    # if abs(u[1,0])>5:
-    #     print("saturation of the angular velocity")
-    #     u[1,0] =np.sign(u[1,0])*5
     return u
+
+def control_feedback_linearization2(pd, pd_dot, pd_ddot, dt, p, v, th, qx, qy,r=4):
+    # as above but modified. the robot wait if ahead of the reference bellow r meters of distance
+
+    if np.linalg.norm(pd-p)<r and np.dot(p-pd,pd_dot)>0:
+        return np.zeros((2,1))
+    else:
+        return control_feedback_linearization(pd, pd_dot, pd_ddot, dt, p, v, th, qx, qy)
 
 
 def control_station_keeping(a, d, pos, th, v=1):  # controller to keep the robot next ot a position
@@ -144,45 +142,99 @@ def convert_motor_control_signal(u, v_hat, wmLeft, wmRight, cmdL_old, cmdR_old,
     # u: controller output [v_dot,w] (m/s^2), (rad/s)
     # v_hat: boat estimated speed given by the propeller (m/s)
     # wmLeft, wmRight : measured rotation speed of the motors (turn/sec)
-    k2, kpwm = 0.5, 2#7.5  # TODO verify k2
-    # ~ print(" ")
-    # ~ print("u is ",u.T)
-    # ~ print("k2*v_hat is",k2*v_hat)
+    k2, kpwm = 0.5, 2
     thust = u[0,0] + k2*v_hat # desired thurst, can only be positive
     if thust < 0: # can't go backward
-        print("can't go backward")
-        # ~ thust = -0*thust
-        # ~ u[1,0] = -10*u[1,0]
         if u[1,0]>0:
             return(0,200)
         else:
             return(200,0)
-    # ~ print("vd wd is",np.array([[thust,u[1,0]]]))
     mat = K_inv @ np.array([[thust,u[1,0]]]).T
-    # ~ mat = K_inv @ (u + np.array([[k2 * v_hat, 0]]).T)  # convert to propeller rotation speed (turn/sec
     wmLeft_d, wmRight_d = mat.flatten()
-    # ~ print("wm is ",wmLeft_d,wmRight_d)
     # saturation between 0 and 200 turn / sec
-    # ~ print(u.T)
     if wmLeft_d < 0 or wmRight_d < 0:  # lower motor saturation, the propellers can't go backward
-        # ~ print("lower motor saturation")
         min_motor = min(wmLeft_d, wmRight_d)
         wmLeft_d, wmRight_d = wmLeft_d - min_motor+50, wmRight_d - min_motor+50
-        # ~ print(wmLeft_d,wmRight_d)
     if wmLeft_d > 200 or wmRight_d > 200:  # upper motor saturation
-        # ~ print("upper motor saturation")
         max_motor = max(wmLeft_d, wmRight_d)
-        #wmLeft_d, wmRight_d = 200 + wmLeft_d - max_motor, 200 + wmRight_d - max_motor
         wmLeft_d = 200*wmLeft_d/max_motor
         wmRight_d = 200*wmRight_d/max_motor
-        # ~ print(wmLeft_d,wmRight_d)
-    # ~ wmLeft_d, wmRight_d = 50,70
-    # ~ print("after saturation, wm is ", wmLeft_d,wmRight_d)
-    # ~ print("measured wm is",wmLeft,wmRight)
-    # ~ print("total control error on propellers is",abs(wmLeft_d-wmLeft)+abs(wmRight_d-wmRight))
 
     # discrete proportional corrector for Pwm
     cmdL = min(max(cmdL_old + dt * kpwm * (wmLeft_d - wmLeft),0),200)
     cmdR = min(max(cmdR_old + dt * kpwm * (wmRight_d - wmRight),0),200)
-    # ~ print("pwm is ", cmdL,cmdR)
     return cmdL, cmdR  # controlled PWM
+
+
+#####################################""
+# general control
+
+class ControlBlock:
+    def __init__(self, dt,traj0,r=4):
+        self.state = 0  # 0 : move towards waypoint , 1 : move towards desired heading, 2 : stop
+        self.dt = dt
+        self.pd0 = np.reshape(np.array([traj0["pd"]]), (2, 1))
+        self.pd_dot0 = np.reshape(np.array([traj0["pd_dot"]]), (2, 1))
+        self.th_d0 = atan2(self.pd_dot0[1, 0], self.pd_dot0[0, 0])
+        self.pd_ddot0 = np.reshape(np.array([traj0["pd_ddot"]]), (2, 1))
+        self.r = r # radius of the station keeping circle
+
+    def variable_update(self,p,v,th,qx,qy,wmLeft,wmRight,cmdL_old,cmdR_old):
+        self.p = p
+        self.v = v
+        self.th = th
+        self.qx = qx
+        self.qy = qy
+        self.wmLeft = wmLeft
+        self.wmRight = wmRight
+        self.cmdL_old = cmdL_old
+        self.cmdR_old = cmdR_old
+        return
+
+    def follow_reference(self,pd, pd_dot, pd_ddot):  # make control_feedback_linearization and convert_motor_control_signal
+        u = control_feedback_linearization(pd, pd_dot, pd_ddot, self.dt, self.p, self.v, self.th, self.qx, self.qy)
+        cmdL, cmdR = convert_motor_control_signal(u, self.v, self.wmLeft, self.wmRight, self.cmdL_old, self.cmdR_old, self.dt)
+        return cmdL, cmdR, u
+
+    def follow_reference2(self,pd, pd_dot, pd_ddot,r=4): # same as above with control_feedback_linearization2
+        u = control_feedback_linearization2(pd, pd_dot, pd_ddot, self.dt, self.p, self.v, self.th, self.qx, self.qy,r)
+        cmdL, cmdR = convert_motor_control_signal(u, self.v, self.wmLeft, self.wmRight, self.cmdL_old, self.cmdR_old,
+                                                  self.dt)
+        return cmdL, cmdR, u
+
+    def station_keeping1(self): # basic station keeping with in and out circle
+        # change state
+        if self.state == 0 and np.linalg.norm(self.pd0 - self.p) < self.r/2:
+            state = 1
+        if self.state == 1 and np.linalg.norm(self.pd0 - self.p) > self.r:
+            state = 0
+
+        # control
+        if self.state == 0:
+            return self.follow_reference(self.pd0, self.pd_dot0, self.pd_ddot0)
+        if self.state == 1:
+            return 0, 0, np.zeros((2, 1))
+
+    def station_keeping2(self):
+        # advanced station keeping to have correct heading
+
+        # change state
+        if self.state == 0:
+            pd1 = self.pd0 - 0.5 * self.r * self.pd_dot0 / np.linalg.norm(self.pd_dot0)  # desired position for state 0
+            if np.linalg.norm(pd1 - self.p) < self.r/2:
+                self.state = 1
+        if self.state == 1:
+            e = sawtooth(self.th_d0 - self.th)
+            if abs(e) < 0.1:
+                self.state = 2
+        if self.state == 2 and np.linalg.norm(self.pd0 - self.p) > self.r:
+            self.state = 0
+
+        # compute control
+        if self.state == 0: # go towards pd1
+            return self.follow_reference(pd1, self.pd_dot0, self.pd_ddot0)
+        if self.state == 1: # turn towards th_d heading
+            u = np.array([[0, 0.1 * e]]).T
+            return convert_motor_control_signal(u, self.v, self.wmLeft, self.wmRight, self.cmdL_old, self.cmdR_old, self.dt), u
+        if self.state == 2: # don't move
+            return 0, 0, np.zeros((2, 1))

@@ -4,6 +4,7 @@ from DDBOAT_controler_v1 import *
 from DDBOAT_filter_v1 import *
 from log_driver import LogRecorder, init_drivers, time
 import json
+import sys
 
 #######################
 # robot setup
@@ -13,17 +14,31 @@ print("robot setup ...")
 
 # load mission script
 file_script = open("angers_mission_script.json", "r")
-file_script2 = open("compass_calibration.json","r")
+file_script2 = open("compass_calibration.json", "r")
 data_script = json.load(file_script)
 data_script2 = json.load(file_script2)
 param = data_script["mission_param"]
 trajs = data_script["trajectories"]
 mission_robot_id = param["mission_robot_id"]
 traj = trajs[mission_robot_id]
-print("robot id",mission_robot_id)
+print("robot id", mission_robot_id)
+
+try:
+    hour = str(sys.argv[1])
+except:
+    hour = 0
+try:
+    minute = str(sys.argv[2])
+except:
+    minute = 0
+tb = param["time_mission_begin"]
+t = time.localtime(time.time())
+dtStr = str(t.tm_year) + "-" + str(t.tm_mon) + "-" + str(t.tm_mday) + "-" + hour + "-" + minute + "-" + str(0)
+local_time_mission_begin = time.strptime(dtStr, "%Y-%m-%d-%H-%M-%S")
+time_mission_begin = time.mktime(local_time_mission_begin)
 
 ard, temperature, gps, encoddrv, imu = init_drivers()
-log_rec = LogRecorder()
+log_rec = LogRecorder(local_time_mission_begin)
 lxm = param["lxm"]
 lym = param["lym"]
 b = np.reshape(np.array([data_script2["b"]]), (3, 1))
@@ -34,7 +49,7 @@ filt = DdboatFilter(lxm, lym, A, b, encoddrv)
 Gamma0 = np.diag(param["Gamma0"])
 Gamma_alpha = np.diag(param["Gamma_alpha"])
 Gamma_beta = np.diag(param["Gamma_beta"])
-while True: # find initial pose
+while True:  # find initial pose
     _, _, _, gll_ok, val, _, _, mag, _, _ = log_rec.log_observe_update(temperature, ard, gps, encoddrv, imu)
     log_rec.log_update_write()
     if gll_ok:
@@ -53,12 +68,8 @@ print("robot setup done")
 #####################
 # wait for mission beginning
 #####################
-# ~ print("wait for the beginning of the mission")
-tb = param["time_mission_begin"]
-dtStr = str(tb["year"])+"-"+str(tb["mon"])+"-"+str(tb["day"])+"-"+str(tb["hour"])+"-"+str(tb["min"])+"-"+str(tb["sec"])
-time_mission_begin = time.mktime(time.strptime(dtStr, "%Y-%m-%d-%H-%M-%S"))
 time_mission_max = param["duration_mission_max"] + time.time()  # max allowed time for mission
-print("mission will begin at",time.localtime(time_mission_begin))
+print("mission will begin at", local_time_mission_begin)
 
 #####################
 # mission loop
@@ -67,8 +78,9 @@ mission = True
 k, pd, pos_old, t_pos_old, cmdL, cmdR = 0, None, kal.p(), time.time(), 0, 0
 
 print("Going to the initial waypoint")
-wait_for_signal = True # after time mission begin, the robot start following the trajectory 
+wait_for_signal = True  # after time mission begin, the robot start following the trajectory
 mstop = 1
+CB = ControlBlock(dt, traj[0], r=4)
 
 while mission:
 
@@ -82,21 +94,18 @@ while mission:
         lat, lon = filt.cvt_gll_ddmm_2_dd(val)
         pos = filt.latlon_to_coord(lat, lon)
         kal.Kalman_correct(np.array([[pos[0, 0], pos[1, 0]]]).T)
+    CB.variable_update(p=kal.p(), v=kal.X[2, 0], th=y_th, qx=0 * kal.X[3, 0], qy=0 * kal.X[4, 0],
+                       wmLeft=wmLeft, wmRight=wmRight, cmdL_old=cmdL, cmdR_old=cmdR)
 
-    # reference update
-    if wait_for_signal: # stand by initial waypoint
-        traj_0 = traj[0]
-        pd = np.reshape(np.array([traj_0["pd"]]), (2, 1))
-        pd_dot,pd_ddot = np.zeros((2,1)), np.zeros((2,1))
-        if mstop == 1 and np.linalg.norm(pd-kal.p())<2: # don't move if under 1m of distance to the waypoint
-            mstop = 0
-        if mstop == 0 and np.linalg.norm(pd-kal.p())>3: # start maving above 3m of distance
-            mstop = 1
-        if time.time() > time_mission_begin: # after time mission begin, the robot start following the trajectory 
+    # control update
+    if wait_for_signal:  # stand by initial waypoint
+        cmdL, cmdR, u = CB.station_keeping1()
+        if time.time() > time_mission_begin:  # after time mission begin, the robot start following the trajectory
             wait_for_signal = False
-            mstop = 1
             print("Start following the trajectory")
-    else:
+    else:  # follow reference
+
+        # update reference
         try:
             traj_k = traj[k]
             pd = np.reshape(np.array([traj_k["pd"]]), (2, 1))
@@ -107,17 +116,12 @@ while mission:
             print("end of the trajectory, break !")
             break
 
-    # controler update
-    u = mstop*control_feedback_linearization(pd, pd_dot, pd_ddot, dt, p=kal.p(), v=kal.X[2, 0], th=y_th, qx=0*kal.X[3, 0],
-                                       qy=0*kal.X[4, 0])
-
-    cmdL, cmdR = convert_motor_control_signal(u, kal.X[2, 0], wmLeft, wmRight, cmdL, cmdR, dt)
-    cmdL, cmdR = mstop*cmdL, mstop*cmdR
-    ard.send_arduino_cmd_motor(cmdL, cmdR)
+        cmdL, cmdR, u = CB.follow_reference(pd, pd_dot, pd_ddot)
+    # ~ ard.send_arduino_cmd_motor(cmdL, cmdR)
     log_rec.log_control_update(u[0, 0], u[1, 0], wmLeft, wmRight, cmdL, cmdR, pd, y_th, kal)
-    kal.Kalman_update(0*u, y_th)
+    kal.Kalman_update(0 * u, y_th)
     log_rec.log_update_write()  # write in the log file
-    
+
     # loop update
     if not sync:
         print("arduino communication lost, break !")
