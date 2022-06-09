@@ -75,22 +75,23 @@ class DdboatFilter:
 
     def compass_calibration(self, imu):  # from student
         # imu : Imu9IO driver
+        print("Calibration de la Boussole")
 
         fichier = open("compass_calibration.txt", "w")
         n_satisfait = 1  # boolean flag to stop procedure
 
         # Boucle de demande de mesure à l'utilisateur
         while n_satisfait:
-            print("Prêt mesure x1 ? (y/n)")
+            print("Allignez le champ magnetic sur axe x.  Prêt mesure ? (y/n)")
             x1 = taking_a_measurement(imu)
 
-            print("Prêt mesure x-1 ? (y/n)")
+            print("Allignez le champ magnetic sur axe -x. Prêt mesure ? (y/n)")
             x_1 = taking_a_measurement(imu)
 
-            print("Prêt mesure x2 ? (y/n)")
+            print("Allignez le champ magnetic sur axe y.  Prêt mesure ? (y/n)")
             x2 = taking_a_measurement(imu)
 
-            print("Prêt mesure x3 ? (y/n)")
+            print("Allignez le champ magnetic sur axe z.  Prêt mesure ? (y/n)")
             x3 = taking_a_measurement(imu)
 
             print("Satisfait ? (y/n)")
