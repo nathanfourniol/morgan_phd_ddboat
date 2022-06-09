@@ -20,7 +20,6 @@ if __name__ == "__main__":
         day = 1
     t = time.localtime(time.time()) # incorrect
     h, m, s = t.tm_hour, t.tm_min, t.tm_sec  # year month day not updated
-    print(h,m,s)
     dtStr = str(year) + "-" + str(month) + "-" + str(day) + "-" + str(h) + "-" + str(m) + "-" + str(s)
     dt = datetime.datetime.strptime(dtStr, "%Y-%m-%d-%H-%M-%S")
     print("CURRENT TIME is " + str(dt))

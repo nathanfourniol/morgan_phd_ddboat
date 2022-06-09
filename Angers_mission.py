@@ -26,14 +26,13 @@ print("robot id", mission_robot_id)
 try:
     hour = str(sys.argv[1])
 except:
-    hour = 0
+    hour = "0"
 try:
     minute = str(sys.argv[2])
 except:
-    minute = 0
-tb = param["time_mission_begin"]
+    minute = "0"
 t = time.localtime(time.time())
-dtStr = str(t.tm_year) + "-" + str(t.tm_mon) + "-" + str(t.tm_mday) + "-" + hour + "-" + minute + "-" + str(0)
+dtStr = str(t.tm_year) + "-" + str(t.tm_mon) + "-" + str(t.tm_mday) + "-" + hour + "-" + minute + "-" + "0"
 local_time_mission_begin = time.strptime(dtStr, "%Y-%m-%d-%H-%M-%S")
 time_mission_begin = time.mktime(local_time_mission_begin)
 
@@ -61,15 +60,13 @@ while True:  # find initial pose
     time.sleep(0.1)
 
 dt = param["dt"]  # 10hz
-print("initial state is", X0.T)
+# ~ print("initial state is", X0.T)
 kal = StateObserver(X0, y_th, Gamma0, Gamma_alpha, Gamma_beta, dt)
 print("robot setup done")
+print("---")
 
-#####################
-# wait for mission beginning
-#####################
 time_mission_max = param["duration_mission_max"] + time.time()  # max allowed time for mission
-print("mission will begin at", local_time_mission_begin)
+print("mission will begin at", time.asctime(local_time_mission_begin))
 
 #####################
 # mission loop
@@ -81,6 +78,7 @@ print("Going to the initial waypoint")
 wait_for_signal = True  # after time mission begin, the robot start following the trajectory
 mstop = 1
 CB = ControlBlock(dt, traj[0], r=4)
+pd = CB.pd0
 
 while mission:
 
