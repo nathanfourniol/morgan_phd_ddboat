@@ -1,4 +1,5 @@
 # main script of the anger mission, the robot must follow a desired timed trajectory
+import numpy as np
 
 from DDBOAT_controler_v1 import *
 from DDBOAT_filter_v1 import *
@@ -68,17 +69,19 @@ print("---")
 time_mission_max = param["duration_mission_max"] + time.time()  # max allowed time for mission
 print("mission will begin at", time.asctime(local_time_mission_begin))
 
+return_home = False # if true, at the en of the mission, the robot return home
+home_lat, home_lon = param["home_lat"], param["home_lon"]
+home_pos = filt.latlon_to_coord(home_lat, home_lon)
+
 #####################
 # mission loop
 #####################
 mission = True
-k, pd, pos_old, t_pos_old, cmdL, cmdR = 0, None, kal.p(), time.time(), 0, 0
+CB = ControlBlock(dt, traj[0], r=4)
+k, pd, pos_old, t_pos_old, cmdL, cmdR = 0, CB.pd0, kal.p(), time.time(), 0, 0
 
 print("Going to the initial waypoint")
 wait_for_signal = True  # after time mission begin, the robot start following the trajectory
-mstop = 1
-CB = ControlBlock(dt, traj[0], r=4)
-pd = CB.pd0
 
 while mission:
 
@@ -111,8 +114,13 @@ while mission:
             pd_ddot = np.reshape(np.array([traj_k["pd_ddot"]]), (2, 1))
             k += 1
         except:  # end of the trajectory
-            print("end of the trajectory, break !")
-            break
+            if return_home and np.linalg.norm(home_pos-kal.p())>5:
+                print("end of the trajectory, return home")
+                pd = home_pos
+                pd_dot, pd_ddot = np.zeros((2,1)), np.zeros((2,1))
+            else:
+                print("end of the mission, break !")
+                break
 
         cmdL, cmdR, u = CB.follow_reference(pd, pd_dot, pd_ddot)
     # ~ ard.send_arduino_cmd_motor(cmdL, cmdR)
