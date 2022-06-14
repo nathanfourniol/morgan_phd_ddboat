@@ -100,7 +100,7 @@ while mission:
 
     # control update
     if wait_for_signal:  # stand by initial waypoint
-        cmdL, cmdR, u = CB.station_keeping1()
+        cmdL, cmdR, u = CB.station_keeping1(t)
         if time.time() > time_mission_begin:  # after time mission begin, the robot start following the trajectory
             wait_for_signal = False
             print("Start following the trajectory")

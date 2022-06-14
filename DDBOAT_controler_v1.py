@@ -133,7 +133,6 @@ def control_station_keeping(a, d, pos, th, v=1):  # controller to keep the robot
     else:
         return 0, 0
 
-
 ###############################################
 # LINK WITH THE MOTORS
 
@@ -178,6 +177,7 @@ class ControlBlock:
         self.th_d0 = atan2(self.pd_dot0[1, 0], self.pd_dot0[0, 0])
         self.pd_ddot0 = np.reshape(np.array([traj0["pd_ddot"]]), (2, 1))
         self.r = r # radius of the station keeping circle
+        self.t_burst = 0.0 # burst time for state 1
 
     def variable_update(self,p,v,th,qx,qy,wmLeft,wmRight,cmdL_old,cmdR_old):
         self.p = p
@@ -202,10 +202,19 @@ class ControlBlock:
                                                   self.dt)
         return cmdL, cmdR, u
 
-    def station_keeping1(self): # basic station keeping with in and out circle
+    def burst(self,t):
+        Delta_t = t - self.t_burst
+        if 11 > Delta_t > 10:  # bust of 1 sec every 10 sec
+            return 75, 75, np.zeros((2, 1))
+        elif Delta_t > 11:
+            self.t_burst = t
+        return 0, 0, np.zeros((2, 1))
+
+    def station_keeping1(self,t): # basic station keeping with in and out circle
         # change state
         if self.state == 0 and np.linalg.norm(self.pd0 - self.p) < self.r/2:
             state = 1
+            self.t_burst = t
         if self.state == 1 and np.linalg.norm(self.pd0 - self.p) > self.r:
             state = 0
 
@@ -213,9 +222,9 @@ class ControlBlock:
         if self.state == 0:
             return self.follow_reference(self.pd0, self.pd_dot0, self.pd_ddot0)
         if self.state == 1:
-            return 0, 0, np.zeros((2, 1))
+            self.burst(t)
 
-    def station_keeping2(self):
+    def station_keeping2(self,t):
         # advanced station keeping to have correct heading
 
         # change state
@@ -227,6 +236,7 @@ class ControlBlock:
             e = sawtooth(self.th_d0 - self.th)
             if abs(e) < 0.1:
                 self.state = 2
+                self.t_burst = t
         if self.state == 2 and np.linalg.norm(self.pd0 - self.p) > self.r:
             self.state = 0
 
@@ -237,4 +247,4 @@ class ControlBlock:
             u = np.array([[0, 0.1 * e]]).T
             return convert_motor_control_signal(u, self.v, self.wmLeft, self.wmRight, self.cmdL_old, self.cmdR_old, self.dt), u
         if self.state == 2: # don't move
-            return 0, 0, np.zeros((2, 1))
+            self.burst(t)
