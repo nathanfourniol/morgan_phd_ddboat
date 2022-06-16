@@ -7,14 +7,13 @@ import logging
 import time
 import sys
 
-
+robot_number = str(encod.robot_id)
 # record sesors data and store them in a log file under the LOG folder
 
 # noinspection PyBroadException
 class LogRecorder:
     def __init__(self,t=None):
         # create a log file
-        robot_number = str(encod.robot_id)
         if t is None:
             t=time.localtime(time.time())
         number = str(t.tm_year) + "_" + str(t.tm_mon) + "_" + str(t.tm_mday) + "_" + str(t.tm_hour) + "_" + str(

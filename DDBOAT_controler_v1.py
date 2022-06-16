@@ -113,8 +113,11 @@ def control_feedback_linearization(pd, pd_dot, pd_ddot, dt, p, v, th, qx, qy):
 def control_feedback_linearization2(pd, pd_dot, pd_ddot, dt, p, v, th, qx, qy,r=4):
     # as above but modified. the robot wait if ahead of the reference bellow r meters of distance
 
-    if np.linalg.norm(pd-p)<r and np.dot(p-pd,pd_dot)>0:
-        return np.zeros((2,1))
+    if np.linalg.norm(pd-p)<r and np.dot(np.transpose(p-pd),pd_dot)>0:
+        th_d = atan2(pd_dot[1, 0], pd_dot[0, 0])
+        e = sawtooth(th_d - th)
+        # ~ print(th_d,e)
+        return np.array([[-0.1*np.linalg.norm(pd_dot)],[0.1 * e]])
     else:
         return control_feedback_linearization(pd, pd_dot, pd_ddot, dt, p, v, th, qx, qy)
 
@@ -142,7 +145,7 @@ def convert_motor_control_signal(u, v_hat, wmLeft, wmRight, cmdL_old, cmdR_old,
     # v_hat: boat estimated speed given by the propeller (m/s)
     # wmLeft, wmRight : measured rotation speed of the motors (turn/sec)
     k2, kpwm = 0.5, 2
-    thust = u[0,0] + k2*v_hat # desired thurst, can only be positive
+    thust = min(u[0,0] + k2*v_hat,1.5) # desired thurst, can only be positive
     if thust < 0: # can't go backward
         if u[1,0]>0:
             return(0,200)
@@ -173,6 +176,7 @@ class ControlBlock:
         self.state = 0  # 0 : move towards waypoint , 1 : move towards desired heading, 2 : stop
         self.dt = dt
         self.pd0 = np.reshape(np.array([traj0["pd"]]), (2, 1))
+        self.pd1 = self.pd0
         self.pd_dot0 = np.reshape(np.array([traj0["pd_dot"]]), (2, 1))
         self.th_d0 = atan2(self.pd_dot0[1, 0], self.pd_dot0[0, 0])
         self.pd_ddot0 = np.reshape(np.array([traj0["pd_ddot"]]), (2, 1))
@@ -204,33 +208,37 @@ class ControlBlock:
 
     def burst(self,t):
         Delta_t = t - self.t_burst
-        if 11 > Delta_t > 10:  # bust of 1 sec every 10 sec
+        # ~ print(Delta_t)
+        t1,t2 = 30, 5
+        if t1+t2 > Delta_t > t1:  # bust of 1 sec every 10 sec
             return 75, 75, np.zeros((2, 1))
-        elif Delta_t > 11:
+        elif Delta_t > t1+t2:
             self.t_burst = t
         return 0, 0, np.zeros((2, 1))
 
     def station_keeping1(self,t): # basic station keeping with in and out circle
         # change state
         if self.state == 0 and np.linalg.norm(self.pd0 - self.p) < self.r/2:
-            state = 1
+            self.state = 1
             self.t_burst = t
         if self.state == 1 and np.linalg.norm(self.pd0 - self.p) > self.r:
-            state = 0
+            self.state = 0
+        # ~ print(self.state)
+        # ~ print(np.linalg.norm(self.pd0 - self.p))
 
         # control
         if self.state == 0:
             return self.follow_reference(self.pd0, self.pd_dot0, self.pd_ddot0)
         if self.state == 1:
-            self.burst(t)
+            return self.burst(t)
 
     def station_keeping2(self,t):
         # advanced station keeping to have correct heading
 
         # change state
         if self.state == 0:
-            pd1 = self.pd0 - 0.5 * self.r * self.pd_dot0 / np.linalg.norm(self.pd_dot0)  # desired position for state 0
-            if np.linalg.norm(pd1 - self.p) < self.r/2:
+            self.pd1 = self.pd0 - 0.5 * self.r * self.pd_dot0 / np.linalg.norm(self.pd_dot0)  # desired position for state 0
+            if np.linalg.norm(self.pd1 - self.p) < self.r/2:
                 self.state = 1
         if self.state == 1:
             e = sawtooth(self.th_d0 - self.th)
@@ -239,12 +247,14 @@ class ControlBlock:
                 self.t_burst = t
         if self.state == 2 and np.linalg.norm(self.pd0 - self.p) > self.r:
             self.state = 0
+        print(self.state)
 
         # compute control
         if self.state == 0: # go towards pd1
-            return self.follow_reference(pd1, self.pd_dot0, self.pd_ddot0)
+            return self.follow_reference(self.pd1, self.pd_dot0, self.pd_ddot0)
         if self.state == 1: # turn towards th_d heading
             u = np.array([[0, 0.1 * e]]).T
-            return convert_motor_control_signal(u, self.v, self.wmLeft, self.wmRight, self.cmdL_old, self.cmdR_old, self.dt), u
+            cmdL, cmdR = convert_motor_control_signal(u, self.v, self.wmLeft, self.wmRight, self.cmdL_old, self.cmdR_old, self.dt)
+            return cmdL,cmdR, u
         if self.state == 2: # don't move
-            self.burst(t)
+            return self.burst(t)

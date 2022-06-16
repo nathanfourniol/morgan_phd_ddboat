@@ -3,7 +3,7 @@ import numpy as np
 
 from DDBOAT_controler_v1 import *
 from DDBOAT_filter_v1 import *
-from log_driver import LogRecorder, init_drivers, time
+from log_driver import LogRecorder, init_drivers, time, robot_number
 import json
 import sys
 
@@ -15,7 +15,7 @@ print("robot setup ...")
 
 # load mission script
 file_script = open("angers_mission_script.json", "r")
-file_script2 = open("compass_calibration.json", "r")
+file_script2 = open("compass_calibration/compass_calibration_ddboat"+robot_number+".json", "r")
 data_script = json.load(file_script)
 data_script2 = json.load(file_script2)
 param = data_script["mission_param"]
@@ -69,7 +69,7 @@ print("---")
 time_mission_max = param["duration_mission_max"] + time.time()  # max allowed time for mission
 print("mission will begin at", time.asctime(local_time_mission_begin))
 
-return_home = False # if true, at the en of the mission, the robot return home
+return_home = True # if true, at the en of the mission, the robot return home
 home_lat, home_lon = param["home_lat"], param["home_lon"]
 home_pos = filt.latlon_to_coord(home_lat, home_lon)
 
@@ -95,7 +95,7 @@ while mission:
         lat, lon = filt.cvt_gll_ddmm_2_dd(val)
         pos = filt.latlon_to_coord(lat, lon)
         kal.Kalman_correct(np.array([[pos[0, 0], pos[1, 0]]]).T)
-    CB.variable_update(p=kal.p(), v=kal.X[2, 0], th=y_th, qx=0 * kal.X[3, 0], qy=0 * kal.X[4, 0],
+    CB.variable_update(p=kal.p(), v=kal.X[2, 0], th=y_th, qx= kal.X[3, 0], qy= kal.X[4, 0],
                        wmLeft=wmLeft, wmRight=wmRight, cmdL_old=cmdL, cmdR_old=cmdR)
 
     # control update
@@ -114,7 +114,7 @@ while mission:
             pd_ddot = np.reshape(np.array([traj_k["pd_ddot"]]), (2, 1))
             k += 1
         except:  # end of the trajectory
-            if return_home and np.linalg.norm(home_pos-kal.p())>5:
+            if return_home and np.linalg.norm(home_pos-kal.p())>20:
                 print("end of the trajectory, return home")
                 pd = home_pos
                 pd_dot, pd_ddot = np.zeros((2,1)), np.zeros((2,1))
@@ -122,8 +122,8 @@ while mission:
                 print("end of the mission, break !")
                 break
 
-        cmdL, cmdR, u = CB.follow_reference(pd, pd_dot, pd_ddot)
-    # ~ ard.send_arduino_cmd_motor(cmdL, cmdR)
+        cmdL, cmdR, u = CB.follow_reference2(pd, pd_dot, pd_ddot)
+    ard.send_arduino_cmd_motor(cmdL, cmdR)
     log_rec.log_control_update(u[0, 0], u[1, 0], wmLeft, wmRight, cmdL, cmdR, pd, y_th, kal)
     kal.Kalman_update(0 * u, y_th)
     log_rec.log_update_write()  # write in the log file
