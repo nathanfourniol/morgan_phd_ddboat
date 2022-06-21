@@ -3,12 +3,14 @@ import numpy as np
 
 from DDBOAT_controler_v1 import *
 from DDBOAT_filter_v1 import *
-from log_driver import LogRecorder, init_drivers, time
+from log_driver import LogRecorder, init_drivers, time, robot_number
 import json
 import sys
 
+filename = "compass_calibration/compass_calibration_ddboat"+robot_number+".json"
+
 file_script = open("angers_mission_script.json", "r")
-file_script2 = open("compass_calibration.json", "r")
+file_script2 = open(filename, "r")
 data_script = json.load(file_script)
 data_script2 = json.load(file_script2)
 param = data_script["mission_param"]
