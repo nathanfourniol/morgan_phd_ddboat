@@ -1,12 +1,13 @@
 # To only calibrate the compass
 
 from DDBOAT_filter_v1 import *
-from log_driver import LogRecorder, init_drivers,time
+from log_driver import LogRecorder, init_drivers,time, robot_number
 
 import json
 
 # load mission script
-file_script = open("compass_calibration.json","r")
+filename = "compass_calibration/compass_calibration_ddboat"+robot_number+".json"
+file_script = open(filename,"r")
 data_script = json.load(file_script)
 
 b = np.reshape(np.array([data_script["b"]]),(3,1))
@@ -37,7 +38,7 @@ if test_final == "y":
     A_f = filt.A.flatten()
     b_f = filt.b.flatten()
     data = {"A":A_f.tolist(),"b":b_f.tolist()}
-    with open("compass_calibration.json","w") as write_file:
+    with open(filename,"w") as write_file:
         json.dump(data, write_file, indent=4)
         write_file.close()
     
