@@ -18,3 +18,7 @@ Additional tests:
 * synchronise time with GPS (hour min sec) : gps_driver_v3.py
 * synchronise time manually (year month day) : set_date.py
 * test motor controller : test_motor_control_loop.py
+* test the heading : test_compass.py
+* display heading and local global position : scout.py
+
+Compass parameters in compass_calibration/

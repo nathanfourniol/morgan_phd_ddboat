@@ -1,6 +1,7 @@
 import serial
 import os
 import time
+import numpy as np
 import datetime
 # ~ import subprocess
 # ~ import shlex
@@ -9,6 +10,18 @@ import datetime
 # https://www.nmea.org/content/STANDARDS/NMEA_0183_Standard
 # https://en.wikipedia.org/wiki/NMEA_0183
 
+def cvt_gll_ddmm_2_dd(val):  # get lat lon from gps raw data val
+        ilat, ilon = val[0], val[2]
+        olat = float(int(ilat / 100))
+        olon = float(int(ilon / 100))
+        olat_mm = (ilat % 100) / 60
+        olon_mm = (ilon % 100) / 60
+        olat += olat_mm
+        olon += olon_mm
+        if val[3] == "W":
+            olon = -olon
+        return olat, olon
+        
 class GpsIO:
     def __init__(self):
         # open serial line connected to the GPS sensor
@@ -68,12 +81,11 @@ class GpsIO:
         except:
             print ("error read GPS")
         msg=False
-        val=[0.,'N',0.,'W',0.]
+        val=[0.,'N',0.,'W',0.,'A']
         if len(v)>0:
             st=v.decode("utf-8")
             if str(st[0:6]) == "$GPGLL":
                 vv = st.split(",")
-                print(vv)
                 if len(vv[1]) > 0:
                     val[0] = float(vv[1])
                 if len(vv[2]) > 0:
@@ -84,6 +96,8 @@ class GpsIO:
                     val[3] = vv[4]
                 if len(vv[5]) > 0:
                     val[4] = float(vv[5])
+                if len(vv[6]) > 0:
+                    val[5] = vv[6]
                 msg=True
         return msg,val
         
@@ -125,6 +139,8 @@ if __name__ == "__main__":
         gll_ok,gll_data=gps.read_gll_non_blocking()
         if gll_ok:
             print (gll_data)
+            print(cvt_gll_ddmm_2_dd(gll_data))
+            # ~ print(gll_data[0]*np.pi/180,gll_data[2]*np.pi/180)
             cnt += 1
             if cnt==20:
                 break
