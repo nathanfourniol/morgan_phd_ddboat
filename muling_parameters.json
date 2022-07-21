@@ -21,6 +21,7 @@
             0.1
         ],
         "dt": 0.1,
-        "duration_mission_max": 1800
+        "duration_mission_max": 60,
+        "d": 9
     }
 }

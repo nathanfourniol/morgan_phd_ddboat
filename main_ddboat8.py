@@ -91,6 +91,7 @@ mission = True
 k, pd, pos_old, t_pos_old, cmdL, cmdR = 0, None, kal.p(), time.time(), 0, 0
 
 
+p_motor = 0.85
 while mission:
 
     # measurements
@@ -104,13 +105,13 @@ while mission:
         pos = filt.latlon_to_coord(lat, lon)
         kal.Kalman_correct(np.array([[pos[0, 0], pos[1, 0]]]).T)
 
-    m.state_update(kal.p()[0], kal.p()[1], kal.X[2, :], kal.th)
+    m.state_update(kal.p()[0], kal.p()[1], kal.X[2, 0], kal.th)
     OBJECTIF = m.run1step(t, dt)
     print('OBJ :', OBJECTIF) 
 
     # control update
     pd_dot, pd_ddot = np.zeros((2, 1)), np.zeros((2, 1))
-    u = control_feedback_linearization(OBJECTIF, pd_dot, pd_ddot, dt, p=kal.p(), v=kal.X[2, 0], th=y_th, qx=0*kal.X[3, 0], qy=0*k[4, 0])
+    u = control_feedback_linearization(OBJECTIF, pd_dot, pd_ddot, dt, p=kal.p(), v=kal.X[2, 0], th=y_th, qx=0*kal.X[3, 0], qy=0*kal.X[4, 0])
     cmdL, cmdR = convert_motor_control_signal(u, kal.X[2, 0], wmLeft, wmRight, cmdL, cmdR, dt)
     ard.send_arduino_cmd_motor(cmdL, cmdR)
     log_rec.log_control_update(u[0, 0], u[1, 0], wmLeft, wmRight, cmdL, cmdR, pd, y_th, kal)
