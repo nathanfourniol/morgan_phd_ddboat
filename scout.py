@@ -7,14 +7,14 @@ from log_driver import LogRecorder, init_drivers, time, robot_number
 import json
 import sys
 
-file_script = open("angers_mission_script.json", "r")
+file_script = open("muling_parameters.json", "r")
 file_script2 = open("compass_calibration/compass_calibration_ddboat"+robot_number+".json", "r")
 data_script = json.load(file_script)
 data_script2 = json.load(file_script2)
 param = data_script["mission_param"]
 
-lxm = param["lxm"]
-lym = param["lym"]
+lym = param["home_lat"]
+lxm = param["home_lon"]
 b = np.reshape(np.array([data_script2["b"]]), (3, 1))
 A = np.reshape(np.array([data_script2["A"]]), (3, 3))
 
@@ -31,6 +31,7 @@ while True:
         msg = msg + "Heading "+str(y_th)
         msg = msg +" | Lat Lon "+str(lat)+" "+str(lon)
         msg = msg + " | Localpose x y " + str(filt.latlon_to_coord(lat, lon).T)
+        print("lxm, lym : {} {}".format(filt.lxm, filt.lym))
         print(msg)
     time.sleep(0.01)
 
