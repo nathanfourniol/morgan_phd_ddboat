@@ -21,7 +21,7 @@ param = data_script["mission_param"]
 
 file_script2 = open("compass_calibration/compass_calibration_ddboat"+robot_number+".json", "r")
 data_script2 = json.load(file_script2)
-print("robot id", 1)
+print("robot id", 2)
 
 try:
     hour = str(sys.argv[1])
@@ -52,13 +52,13 @@ Gamma_beta = np.diag(param["Gamma_beta"])
 # Init mule
 d = param["d"]
 verbose_m = False
-verbose_s = False
-borne_inf_latlon = (48.2, -0.5)
+verbose_s = 1
+borne_inf_latlon = (lym, lxm)
 borne_inf_local = filt.latlon_to_coord(borne_inf_latlon[0], borne_inf_latlon[1])
-borne_sup_latlon = (48.2, -0.5)
+borne_sup_latlon = (lym, lxm)
 borne_sup_local = filt.latlon_to_coord(borne_sup_latlon[0], borne_sup_latlon[1])
 bornes = (borne_inf_local, borne_sup_local)
-m = mule.Dubins(1, 5, 0, 2, 0, bornes, d, "10.42.0.202", "10.42.0.1", verbose_m, verbose_s)
+m = mule.Dubins(2, 5, 0, 2, 0, bornes, d, "10.42.0.202", "10.42.0.1", verbose_m, verbose_s)
 
 while True:  # find initial pose
     _, _, _, gll_ok, val, _, _, mag, _, _ = log_rec.log_observe_update(temperature, ard, gps, encoddrv, imu)
@@ -103,11 +103,13 @@ while mission:
     if gll_ok:  # correct kalman filter with new gps data
         lat, lon = filt.cvt_gll_ddmm_2_dd(val)
         pos = filt.latlon_to_coord(lat, lon)
-        kal.Kalman_correct(np.array([[pos[0, 0], pos[1, 0]]]).T)
+        # kal.Kalman_correct(np.array([[pos[0, 0], pos[1, 0]]]).T)
 
-    m.state_update(kal.p()[0], kal.p()[1], kal.X[2, 0], kal.th)
+    # m.state_update(kal.p()[0], kal.p()[1], kal.X[2, 0], kal.th)
     OBJECTIF = m.run1step(t, dt)
-    print('OBJ :', OBJECTIF) 
+    # print('OBJ :', OBJECTIF) 
+    # print("BORNES", m.bornes)
+    # print(m.state)
 
     # control update
     pd_dot, pd_ddot = np.zeros((2, 1)), np.zeros((2, 1))
