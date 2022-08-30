@@ -82,16 +82,16 @@ class DdboatFilter:
 
         # Boucle de demande de mesure à l'utilisateur
         while n_satisfait:
-            print("Allignez le champ magnetic sur axe x.  Prêt mesure ? (y/n)")
+            print("Allignez le champ magnetic sur axe x.  Pret mesure ? (y/n)")
             x1 = taking_a_measurement(imu)
 
-            print("Allignez le champ magnetic sur axe -x. Prêt mesure ? (y/n)")
+            print("Allignez le champ magnetic sur axe -x. Pret mesure ? (y/n)")
             x_1 = taking_a_measurement(imu)
 
-            print("Allignez le champ magnetic sur axe y.  Prêt mesure ? (y/n)")
+            print("Allignez le champ magnetic sur axe y.  Pret mesure ? (y/n)")
             x2 = taking_a_measurement(imu)
 
-            print("Allignez le champ magnetic sur axe z.  Prêt mesure ? (y/n)")
+            print("Allignez le champ magnetic sur axe z.  Pret mesure ? (y/n)")
             x3 = taking_a_measurement(imu)
 
             print("Satisfait ? (y/n)")
