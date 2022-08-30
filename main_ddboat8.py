@@ -52,13 +52,15 @@ Gamma_beta = np.diag(param["Gamma_beta"])
 # Init mule
 d = param["d"]
 verbose_m = False
-verbose_s = False
-borne_inf_latlon = (48.2, -0.5)
+verbose_s = 1
+borne_inf_latlon = (lym, lxm)
 borne_inf_local = filt.latlon_to_coord(borne_inf_latlon[0], borne_inf_latlon[1])
-borne_sup_latlon = (48.2, -0.5)
+borne_sup_latlon = (48.430855, -4.615595)
 borne_sup_local = filt.latlon_to_coord(borne_sup_latlon[0], borne_sup_latlon[1])
 bornes = (borne_inf_local, borne_sup_local)
-m = mule.Dubins(1, 5, 0, 2, 0, bornes, d, "10.42.0.208", "10.42.0.1", verbose_m, verbose_s)
+print("COORD BORNES : ", bornes) 
+m = mule.Dubins(1, 0, 0, 0, 0, bornes, d, "10.42.0.208", "10.42.0.1", verbose_m, verbose_s)
+print("INIT MULE : ", m.state)
 
 while True:  # find initial pose
     _, _, _, gll_ok, val, _, _, mag, _, _ = log_rec.log_observe_update(temperature, ard, gps, encoddrv, imu)
@@ -90,8 +92,8 @@ home_pos = filt.latlon_to_coord(home_lat, home_lon)
 mission = True
 k, pd, pos_old, t_pos_old, cmdL, cmdR = 0, None, kal.p(), time.time(), 0, 0
 
-
-p_motor = 0.85
+t_adv = time.time()
+p_motor = 1
 while mission:
 
     # measurements
@@ -107,11 +109,17 @@ while mission:
 
     m.state_update(kal.p()[0], kal.p()[1], kal.X[2, 0], kal.th)
     OBJECTIF = m.run1step(t, dt)
-    print('OBJ :', OBJECTIF) 
+
+    delta_adv = time.time()-t_adv 
+    if delta_adv > 2:
+        t_adv = time.time()
+        # print('OBJ :', OBJECTIF) 
+        print('POS :', m.state)
+        print('CMD : ', cmdL, cmdR)
 
     # control update
     pd_dot, pd_ddot = np.zeros((2, 1)), np.zeros((2, 1))
-    u = control_feedback_linearization(OBJECTIF, pd_dot, pd_ddot, dt, p=kal.p(), v=kal.X[2, 0], th=y_th, qx=0*kal.X[3, 0], qy=0*kal.X[4, 0])
+    u = p_motor * control_feedback_linearization(OBJECTIF, pd_dot, pd_ddot, dt, p=kal.p(), v=kal.X[2, 0], th=y_th, qx=0*kal.X[3, 0], qy=0*kal.X[4, 0])
     cmdL, cmdR = convert_motor_control_signal(u, kal.X[2, 0], wmLeft, wmRight, cmdL, cmdR, dt)
     ard.send_arduino_cmd_motor(cmdL, cmdR)
     log_rec.log_control_update(u[0, 0], u[1, 0], wmLeft, wmRight, cmdL, cmdR, pd, y_th, kal)
