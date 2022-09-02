@@ -1,7 +1,7 @@
 {
     "mission_param": {
-        "home_lat": 48.4306216 ,
-        "home_lon": -4.615490,
+        "home_lat": 48.41803,
+        "home_lon": -4.4733716,
         "Gamma0": [
             10,
             10,
@@ -21,7 +21,7 @@
             0.1
         ],
         "dt": 0.1,
-        "duration_mission_max": 60,
+        "duration_mission_max": 1000,
         "d": 9
     }
 }

@@ -52,10 +52,10 @@ Gamma_beta = np.diag(param["Gamma_beta"])
 # Init mule
 d = param["d"]
 verbose_m = False
-verbose_s = 1
+verbose_s = 0
 borne_inf_latlon = (lym, lxm)
 borne_inf_local = filt.latlon_to_coord(borne_inf_latlon[0], borne_inf_latlon[1])
-borne_sup_latlon = (48.430855, -4.615595)
+borne_sup_latlon = (48.418017, -4.473815)
 borne_sup_local = filt.latlon_to_coord(borne_sup_latlon[0], borne_sup_latlon[1])
 bornes = (borne_inf_local, borne_sup_local)
 print("COORD BORNES : ", bornes) 
@@ -107,14 +107,14 @@ while mission:
         pos = filt.latlon_to_coord(lat, lon)
         kal.Kalman_correct(np.array([[pos[0, 0], pos[1, 0]]]).T)
 
-    m.state_update(kal.p()[0], kal.p()[1], kal.X[2, 0], kal.th)
+    m.state_update(kal.p()[0][0], kal.p()[1][0], kal.X[2, 0], kal.th)
     OBJECTIF = m.run1step(t, dt)
 
     delta_adv = time.time()-t_adv 
     if delta_adv > 2:
         t_adv = time.time()
-        # print('OBJ :', OBJECTIF) 
-        print('POS :', m.state)
+        print('OBJ :', OBJECTIF) 
+        print('POS :', m.state[0:2])
         print('CMD : ', cmdL, cmdR)
 
     # control update
