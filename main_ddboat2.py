@@ -66,7 +66,8 @@ while True:  # find initial pose
     if gll_ok:
         y_th = filt.cap(mag[0], mag[1], mag[2])
         lat, lon = filt.cvt_gll_ddmm_2_dd(val)
-        pos = filt.latlon_to_coord(lat, lon)
+        # pos = filt.latlon_to_coord(lat, lon)
+        pos = filt.latlon_to_coord(lym, lxm)
         X0 = np.array([[pos[0, 0], pos[1, 0], 1, 0, 0]]).T  # note: initial speed set to 1 to avoid singularity
         break
     time.sleep(0.1)
@@ -103,9 +104,10 @@ while mission:
     if gll_ok:  # correct kalman filter with new gps data
         lat, lon = filt.cvt_gll_ddmm_2_dd(val)
         pos = filt.latlon_to_coord(lat, lon)
-        # kal.Kalman_correct(np.array([[pos[0, 0], pos[1, 0]]]).T)
+        pos = filt.latlon_to_coord(lym, lxm)
+        kal.Kalman_correct(np.array([[pos[0, 0], pos[1, 0]]]).T)
 
-    # m.state_update(kal.p()[0], kal.p()[1], kal.X[2, 0], kal.th)
+    m.state_update(kal.p()[0][0], kal.p()[1][0], kal.X[2, 0], kal.th)
     OBJECTIF = m.run1step(t, dt)
     # print('OBJ :', OBJECTIF) 
     # print("BORNES", m.bornes)
